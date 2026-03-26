@@ -820,11 +820,29 @@
         
         xhr.onload = function(e) {
             if (xhr.status === 200) {
-                const encryptedData = xhr.responseText;
+                const responseText = xhr.responseText;
                 const password = ACCESS_PASSWORD; // 使用登录密码解密
                 
                 try {
                     console.log('自动获取加密文件成功:' + DEFAULT_DATA_FILE);
+
+                    let encryptedData = responseText;
+                    // 检测是否包含原始文件名前缀 (e.g. filename.xlsx|encrypted_data)
+                    const delimiterIndex = responseText.indexOf('|');
+                    if (delimiterIndex > -1 && delimiterIndex < 500) {
+                        const originalFilename = responseText.substring(0, delimiterIndex);
+                        if (originalFilename.endsWith('.xlsx') || originalFilename.endsWith('.xls')) {
+                            // 提取内置好的文件名并获取日期
+                            dataCutoffDate = extractDateFromFilename(originalFilename);
+                            console.log('从加密文件中提取出原始文件名:', originalFilename, '提取日期:', dataCutoffDate);
+                            // 截取剩余部分作为需要解密的数据
+                            encryptedData = responseText.substring(delimiterIndex + 1);
+                        } else {
+                            dataCutoffDate = '加密模式';
+                        }
+                    } else {
+                        dataCutoffDate = '加密模式';
+                    }
                     
                     // 1. 使用 CryptoJS 解密
                     const decrypted = CryptoJS.AES.decrypt(encryptedData, password);
@@ -846,9 +864,6 @@
                         raw: false,
                         defval: ''
                     });
-                    
-                    // 特别处理：从第一行数据提取日期（如果文件名无法提取）
-                    dataCutoffDate = '加密模式'; 
 
                     const headers = jsonData[0].map(h => String(h).trim());
                     const rows = [];
