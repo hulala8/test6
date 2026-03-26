@@ -257,40 +257,63 @@
                 throw new Error('无法连接到 GitHub 仓库，请检查账号/仓库名或 Token 是否正确。');
             }
 
-            publishBtn.textContent = '正在上传到 GitHub...';
+            publishBtn.textContent = '正在编码数据 (此过程可能需要几秒钟)...';
 
-            // 3. UTF-8 Base64 Encode payload manually
-            const base64Content = btoa(unescape(encodeURIComponent(filePayload)));
+            // 3. 将包含中文前缀和 Base64 内容的长字符串安全转换为 Base64
+            // 使用原生 Blob 和 FileReader 实现无损且不崩溃的巨大文件 Base64 编码
+            const blob = new Blob([filePayload], { type: 'text/plain;charset=utf-8' });
+            const reader = new FileReader();
+            
+            reader.onloadend = async function() {
+                try {
+                    const base64Content = reader.result.split(',')[1];
+                    
+                    publishBtn.textContent = '正在上传到 GitHub...';
+                    
+                    // 4. PUT updated file to GitHub
+                    const putResponse = await fetch(apiUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': \`Bearer \${token}\`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: \`Update data.bin from Mobile Encryptor API: \${new Date().toLocaleString()}\`,
+                            content: base64Content,
+                            sha: sha || undefined
+                        })
+                    });
 
-            // 4. PUT updated file to GitHub
-            const putResponse = await fetch(apiUrl, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': \`Bearer \${token}\`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    message: \`Update data.bin from Mobile Encryptor API: \${new Date().toLocaleString()}\`,
-                    content: base64Content,
-                    sha: sha || undefined
-                })
-            });
+                    if (!putResponse.ok) {
+                        const errorData = await putResponse.json();
+                        throw new Error('发布失败: ' + (errorData.message || putResponse.statusText));
+                    }
 
-            if (!putResponse.ok) {
-                const errorData = await putResponse.json();
-                throw new Error('发布失败: ' + (errorData.message || putResponse.statusText));
-            }
+                    resultBox.innerHTML = \`
+                        <p style="color: #2e7d32; font-weight: bold; margin-bottom: 10px;">🎉 发布成功！</p>
+                        <p style="font-size: 13px; color: #444;">新数据已直接推送至 \${repo}。<br>请稍等 10-30 秒后刷新看板，即可看到最新数据！</p>
+                        <a href="\https://\${repo.split('/')[0]}.github.io/\${repo.split('/')[1]}/\" target="_blank" style="display:inline-block; margin-top:10px; color:var(--primary-color); font-weight:bold; text-decoration:none;">🔗 立即体验最新看版 >>></a>
+                    \`;
+                    resultBox.style.display = 'block';
 
-            resultBox.innerHTML = \`
-                <p style="color: #2e7d32; font-weight: bold; margin-bottom: 10px;">🎉 发布成功！</p>
-                <p style="font-size: 13px; color: #444;">新数据已直接推送至 \${repo}。<br>请稍等 10 秒后刷新看板，即可看到最新数据！</p>
-                <a href="\https://\${repo.split('/')[0]}.github.io/\${repo.split('/')[1]}/\" target="_blank" style="display:inline-block; margin-top:10px; color:var(--primary-color); font-weight:bold; text-decoration:none;">🔗 立即打开看板 >>></a>
-            \`;
-            resultBox.style.display = 'block';
+                } catch (err) {
+                    errorMsg.textContent = err.message || err;
+                } finally {
+                    publishBtn.textContent = '⚡️ 手机端：加密并直接发布到看板';
+                    publishBtn.disabled = false;
+                }
+            };
+            reader.onerror = function() {
+                errorMsg.textContent = '文件编码转换为 Base64 失败，内存不足。';
+                publishBtn.textContent = '⚡️ 手机端：加密并直接发布到看板';
+                publishBtn.disabled = false;
+            };
+            
+            // 开始异步读取
+            reader.readAsDataURL(blob);
 
         } catch (err) {
-            errorMsg.textContent = err;
-        } finally {
+            errorMsg.textContent = err.message || err;
             publishBtn.textContent = '⚡️ 手机端：加密并直接发布到看板';
             publishBtn.disabled = false;
         }
