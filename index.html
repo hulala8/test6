@@ -810,85 +810,100 @@
         }
     }
 
-    // 自动加载预置加密数据
-    function autoLoadData() {
-        showLoading('正在安全解密并解析数据，请稍候...');
+    // 自动加载预置加密数据 (增强型：防止手机端主线程死锁)
+    async function autoLoadData() {
+        showLoading('正在加载安全数据源，请稍候...');
         
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', DEFAULT_DATA_FILE, true);
-        xhr.responseType = 'text'; // 加密后的文件是字符串格式
-        
-        xhr.onload = function(e) {
-            if (xhr.status === 200) {
-                const responseText = xhr.responseText;
-                const password = ACCESS_PASSWORD; // 使用登录密码解密
-                
-                try {
-                    console.log('自动获取加密文件成功:' + DEFAULT_DATA_FILE);
-
-                    let encryptedData = responseText;
-                    // 检测是否包含原始文件名前缀 (e.g. filename.xlsx|encrypted_data)
-                    const delimiterIndex = responseText.indexOf('|');
-                    if (delimiterIndex > -1 && delimiterIndex < 500) {
-                        const originalFilename = responseText.substring(0, delimiterIndex);
-                        if (originalFilename.endsWith('.xlsx') || originalFilename.endsWith('.xls')) {
-                            // 提取内置好的文件名并获取日期
-                            dataCutoffDate = extractDateFromFilename(originalFilename);
-                            console.log('从加密文件中提取出原始文件名:', originalFilename, '提取日期:', dataCutoffDate);
-                            // 截取剩余部分作为需要解密的数据
-                            encryptedData = responseText.substring(delimiterIndex + 1);
-                        } else {
-                            dataCutoffDate = '加密模式';
-                        }
-                    } else {
-                        dataCutoffDate = '加密模式';
-                    }
-                    
-                    // 1. 使用 CryptoJS 解密
-                    const decrypted = CryptoJS.AES.decrypt(encryptedData, password);
-                    
-                    // 2. 将 WordArray 转换为 ArrayBuffer (Uint8Array)
-                    const uint8Array = new Uint8Array(decrypted.sigBytes);
-                    const words = decrypted.words;
-                    for (let i = 0; i < decrypted.sigBytes; i++) {
-                        uint8Array[i] = (words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
-                    }
-                    
-                    // 3. 使用 XLSX 读取解密后的二进制流
-                    const workbook = XLSX.read(uint8Array, { type: 'array' });
-                    
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
-                        header: 1,
-                        raw: false,
-                        defval: ''
-                    });
-
-                    const headers = jsonData[0].map(h => String(h).trim());
-                    const rows = [];
-                    for (let i = 1; i < jsonData.length; i++) {
-                        const row = {};
-                        const rowData = jsonData[i];
-                        for (let j = 0; j < headers.length; j++) {
-                            row[headers[j]] = rowData[j] !== undefined ? String(rowData[j]) : '';
-                        }
-                        rows.push(row);
-                    }
-                    
-                    validateAndProcess(rows, headers);
-                } catch (err) {
-                    console.error('自动解密或解析数据失败:', err);
-                    resetEmptyState();
-                    showMessage('自动解密失败，请务必保证密码正确', 'error');
-                }
-            } else {
-                console.warn('加密数据文件未找到或加载失败:', xhr.status);
+        try {
+            console.log('开始加载默认文件:', DEFAULT_DATA_FILE);
+            
+            // 使用 Fetch 替代 XHR，支持更好的内存管理
+            const response = await fetch(DEFAULT_DATA_FILE);
+            if (!response.ok) {
+                console.warn('文件可能尚未上传:', response.status);
                 resetEmptyState();
+                return;
             }
-        };
-        
-        xhr.send();
+            
+            const responseText = await response.text();
+            
+            // 异步分段处理避免主线程卡顿
+            await new Promise(r => setTimeout(r, 50));
+            showLoading('安全解密连接已开启...');
+            
+            let encryptedData = responseText;
+            const delimiterIndex = responseText.indexOf('|');
+            if (delimiterIndex > -1 && delimiterIndex < 500) {
+                const originalFilename = responseText.substring(0, delimiterIndex);
+                if (originalFilename.endsWith('.xlsx') || originalFilename.endsWith('.xls')) {
+                    dataCutoffDate = extractDateFromFilename(originalFilename);
+                    encryptedData = responseText.substring(delimiterIndex + 1);
+                }
+            }
+            
+            await new Promise(r => setTimeout(r, 50));
+            showLoading('正在进行加密数据校验并深度解密...');
+            
+            // 核心解密 (CryptoJS)
+            const decrypted = CryptoJS.AES.decrypt(encryptedData, ACCESS_PASSWORD);
+            if (!decrypted || decrypted.sigBytes <= 0) {
+                throw new Error('解密校验失败，请检查密码或核心文件完整性');
+            }
+            
+            // 清理已用内存
+            encryptedData = null;
+
+            await new Promise(r => setTimeout(r, 50));
+            showLoading('正在转换解密流（第二阶段，共三阶段）...');
+            
+            // 转换为 Uint8Array
+            const len = decrypted.sigBytes;
+            const words = decrypted.words;
+            const uint8Array = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                uint8Array[i] = (words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
+            }
+            
+            // 释放大型对象内存
+            decrypted.words = null;
+
+            await new Promise(r => setTimeout(r, 50));
+            showLoading('正在解析数据字典，请耐心等待最后几秒...');
+            
+            // 使用 XLSX 读取
+            const workbook = XLSX.read(uint8Array, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+                header: 1,
+                raw: false,
+                defval: ''
+            });
+
+            if (!jsonData || jsonData.length === 0) {
+                throw new Error('未在数据包中发现有效工作表');
+            }
+
+            const headers = jsonData[0].map(h => String(h).trim());
+            const rows = [];
+            for (let i = 1; i < jsonData.length; i++) {
+                const row = {};
+                const rowData = jsonData[i];
+                for (let j = 0; j < headers.length; j++) {
+                    const h = headers[j];
+                    if (h) row[h] = rowData[j] !== undefined ? String(rowData[j]) : '';
+                }
+                rows.push(row);
+            }
+            
+            await new Promise(r => setTimeout(r, 50));
+            validateAndProcess(rows, headers);
+
+        } catch (err) {
+            console.error('手机端专属解密解析异常:', err);
+            resetEmptyState();
+            showMessage('加载异常: ' + (err.message || '未知错误'), 'error');
+        }
     }
 
     // 页面加载后的操作
@@ -1193,23 +1208,25 @@
         }
         else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
-                    showLoading('正在解析Excel文件...');
+                    showLoading('正在解析Excel文件引擎...');
+                    await new Promise(r => setTimeout(r, 50));
+                    
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    showLoading('正在提取工作表数据...');
+                    await new Promise(r => setTimeout(r, 50));
                     
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
                     
-                    // 使用原始数据解析，避免数据丢失
                     const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
                         header: 1,
                         raw: false,
                         defval: ''
                     });
-                    
-                    console.log('Excel原始数据行数:', jsonData.length);
                     
                     if (jsonData.length < 2) {
                         showMessage('Excel文件数据为空', 'error');
@@ -1229,10 +1246,9 @@
                         rows.push(row);
                     }
                     
-                    console.log('解析后的数据行数:', rows.length);
                     validateAndProcess(rows, headers);
                 } catch (err) {
-                    console.error('Excel解析错误:', err);
+                    console.error('Excel解析逻辑异常:', err);
                     showMessage('Excel解析失败: ' + err.message, 'error');
                     resetEmptyState();
                 }
@@ -1267,7 +1283,7 @@
     }
 
     // 验证并处理数据
-    function validateAndProcess(data, headers) {
+    async function validateAndProcess(data, headers) {
         const requiredCols = ['所在省区', '2026年指标值', '2026年进货值'];
         const missingCols = requiredCols.filter(col => !headers.includes(col));
         
@@ -1277,7 +1293,7 @@
             return;
         }
 
-        processData(data);
+        await processData(data);
     }
 
     // 重置空状态
@@ -1288,21 +1304,23 @@
         `;
     }
 
-    // 处理数据
-    function processData(data) {
+    // 处理数据 (优化版：异步处理防止手机端白屏)
+    async function processData(data) {
         try {
-            showLoading('正在处理数据...');
+            showLoading('正在清洗并过滤数据...');
+            await new Promise(r => setTimeout(r, 50));
             
             // 过滤空行
             rawData = data.filter(row => row['所在省区'] && String(row['所在省区']).trim() !== '');
             
-            console.log('有效数据行数:', rawData.length);
-            
             if (rawData.length === 0) {
-                showMessage('没有找到有效数据', 'error');
+                showMessage('没有找到有效数据，请检查“所在省区”列', 'error');
                 resetEmptyState();
                 return;
             }
+            
+            showLoading(`数据清洗完成，正在准备处理 ${rawData.length.toLocaleString()} 条数据...`);
+            await new Promise(r => setTimeout(r, 50));
 
             // 处理数值并建立联动映射
             productMapping = {};
