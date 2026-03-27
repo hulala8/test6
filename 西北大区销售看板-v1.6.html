@@ -256,20 +256,31 @@
         .hospital-row { background-color: #ffffff; }
         .hidden { display: none; }
 
+        .import-source-container {
+            display: flex; justify-content: space-between; align-items: center;
+            background-color: #fff; padding: 10px 15px; border-radius: 5px; margin-bottom: 20px;
+            border: 1px dashed #ccc;
+        }
+        .import-source-container .upload-btn { background-color: #f0f0f0; color: #444; border: 1px solid #ddd; padding: 6px 15px; font-size: 13px;}
+        .import-source-container .upload-btn:hover { background-color: #e0e0e0; }
+        .auto-update-hint { font-size: 12px; color: #888; }
+        
+        .mobile-filter-apply-btn { display: none; }
+
         /* 移动端适配样式 */
         .mobile-filter-toggle {
             display: none;
             width: 100%;
-            padding: 10px;
+            padding: 8px 10px;
             background-color: #fce4d6;
             color: #ed7d31;
             border: 1px solid #ed7d31;
-            border-radius: 5px;
-            font-size: 14px;
+            border-radius: 3px;
+            font-size: 13px;
             font-weight: bold;
             text-align: center;
             cursor: pointer;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
 
         .filter-overlay {
@@ -316,36 +327,37 @@
             .data-date-banner .progress-value { font-size: 14px; }
             .data-date-banner .progress-divider { display: none; }
             
-            /* KPI卡片两列/三列排布 */
-            .kpi-container { flex-wrap: wrap; gap: 10px; padding: 10px; background-color: transparent; }
+            /* KPI卡片更紧凑 */
+            .kpi-container { flex-wrap: wrap; gap: 4px; padding: 4px; background-color: transparent; margin-bottom: 10px; }
             .kpi-box { 
-                flex: 1 1 45%; 
+                flex: 1 1 30%; /* 允许一行三个 */
                 background-color: #203764; 
-                border-radius: 5px; 
-                padding: 10px; 
+                border-radius: 4px; 
+                padding: 6px; 
                 border-right: none;
-                margin-bottom: 5px;
+                margin-bottom: 0;
             }
-            .kpi-title { font-size: 12px; }
-            .kpi-value { font-size: 18px; }
+            .kpi-title { font-size: 10px; margin-bottom: 3px; }
+            .kpi-value { font-size: 15px; }
 
             /* 表格高度自适应，横向滚动 */
             .table-container { 
                 height: auto !important; 
-                max-height: 65vh !important; /* 随内容撑开，不固定500px */
+                max-height: 65vh !important;
                 overflow-x: auto; 
                 -webkit-overflow-scrolling: touch; 
             }
             table { min-width: 800px; /* 强制表格宽度 */ }
             th, td { font-size: 12px; padding: 6px; }
             
-            /* 冻结三个表格的第一列 */
+            /* 冻结三个表格的第一列，并增加玻璃质感阴影表示左滑深度 */
             #data-table th:first-child, #data-table td:first-child,
             #product-table th:first-child, #product-table td:first-child,
             #sales-table th:first-child, #sales-table td:first-child {
                 position: sticky;
                 left: 0;
                 z-index: 5;
+                box-shadow: 2px 0 5px rgba(0,0,0,0.1);
             }
             /* 第一列背景色，防止透明背景字体重叠 */
             #data-table th:first-child, #product-table th:first-child, #sales-table th:first-child {
@@ -358,16 +370,45 @@
             #product-table .office-row td:first-child { background-color: #ddebf7; }
             #product-table .hospital-row td:first-child { background-color: #ffffff; }
 
-            /* 按钮和切换器 */
-            .mom-toggle-container { flex-wrap: wrap; justify-content: center; }
-            .sales-toggle-container { flex-wrap: wrap; justify-content: flex-start; }
+            /* 按钮和切换器 放宽间距适配大拇指 */
+            .mom-toggle-container { flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; }
+            .sales-toggle-container { flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
             
-            /* 纯销卡片两列 */
-            .sales-kpi-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-            .sales-kpi-card { min-width: 0; padding: 10px; }
-            .sales-kpi-card h4 { font-size: 14px; }
-            .sales-kpi-value { font-size: 18px; }
-            .sales-kpi-rate { font-size: 16px; }
+            /* 纯销卡片两列 更紧凑 */
+            .sales-kpi-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 10px; }
+            .sales-kpi-card { min-width: 0; padding: 8px; border-width: 1px; }
+            .sales-kpi-card h4 { font-size: 12px; margin-bottom: 5px; }
+            .sales-kpi-value { font-size: 16px; }
+            .sales-kpi-rate { font-size: 14px; }
+            .sales-kpi-label { font-size: 10px; }
+
+            /* 放大筛选面板选项触控区 */
+            .filter-option { padding: 8px 5px; margin-bottom: 2px; }
+            
+            /* 移动端专属的非置顶上传导入区域 */
+            .import-source-container {
+                display: flex; flex-direction: column; align-items: flex-start;
+                padding: 4px; border: none; background: transparent; margin-bottom: 5px;
+            }
+            .import-source-container .upload-btn { font-size: 11px; padding: 4px 8px; background: transparent; color: #4472c4; border-color: #4472c4; }
+            .auto-update-hint { display: none; }
+            
+            .header-bar { display: none; } /* 移动端彻底隐藏巨大的原标题和按钮栏 */
+            
+            /* 注入底部大号完成按钮 */
+            .mobile-filter-apply-btn {
+                display: block;
+                width: 100%;
+                padding: 12px;
+                margin-top: 15px;
+                background-color: #ed7d31; 
+                color: white;
+                border: none;
+                border-radius: 5px;
+                font-size: 16px;
+                font-weight: bold;
+                box-shadow: 0 4px 10px rgba(237,125,49,0.3);
+            }
         }
         /* 登录页面样式 */
         #login-overlay {
@@ -449,14 +490,26 @@
 </div>
 
 <div class="dashboard" id="main-dashboard" style="display: none;">
+    <!-- 顶栏区域：移动端直接隐藏整个 header-bar 包括原有的巨大上传按钮和标题 -->
     <div class="sticky-header">
         <div class="header-bar">
             <h2>📊 销售数据交互看板</h2>
-            <label class="upload-btn">
-                导入数据源 (CSV/Excel)
-                <input type="file" id="file-upload" accept=".csv,.xlsx,.xls">
-            </label>
         </div>
+        
+        <!-- 移动端筛选器切换按钮：保留为 sticky 这样随时可以点 -->
+        <button id="mobile-filter-toggle" class="mobile-filter-toggle" style="display: none;" onclick="toggleMobileFilters()">
+            🔍 筛选条件面板 (已选 <span id="filter-badge">全局</span>) ▼
+        </button>
+    </div>
+
+    <!-- 非固定的导入数据源组件，自然滚动出屏幕 -->
+    <div class="import-source-container">
+        <label class="upload-btn">
+            📂 自由导入未加密源表 (CSV/Excel)
+            <input type="file" id="file-upload" accept=".csv,.xlsx,.xls">
+        </label>
+        <span class="auto-update-hint">💡 生产环境建议使用 data-encryptor 更新密文数据，提升安全与加载速度</span>
+    </div>
 
         <div id="message-area"></div>
 
@@ -503,6 +556,8 @@
             </div>
             <div class="filter-options" id="f-name"></div>
             </div>
+            <!-- 移动端专属的强引导关闭按钮 -->
+            <button class="mobile-filter-apply-btn" onclick="toggleMobileFilters()">✅ 完成筛选，查看看板数据</button>
         </div>
     </div>
 
