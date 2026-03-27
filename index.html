@@ -443,6 +443,7 @@
         </div>
 
         <div id="message-area"></div>
+        <input type="file" id="file-upload" accept=".csv,.xlsx,.xls" style="display: none;">
 
         <!-- 移动端筛选器切换按钮 -->
         <button id="mobile-filter-toggle" class="mobile-filter-toggle" style="display: none;" onclick="toggleMobileFilters()">
@@ -697,6 +698,14 @@
     <div id="empty-state" class="empty-state">
         👆 请点击右上角上传您的数据源 (CSV/Excel文件) 开启分析<br><br>
         <small style="color: #666;">支持的文件格式：.csv, .xlsx, .xls</small>
+    </div>
+
+    <!-- 底部导入数据源入口 -->
+    <div id="bottom-upload-container" style="text-align: center; margin-top: 30px; padding: 30px 0; border-top: 1px dashed #ccc;">
+        <label class="upload-btn-bottom" style="background-color: #f8f9fa; color: #666; border: 1px solid #ddd; font-size: 14px; padding: 10px 30px; border-radius: 20px; display: inline-block; cursor: pointer;">
+            导入数据源 (CSV/Excel)
+            <input type="file" id="file-upload-bottom" accept=".csv,.xlsx,.xls" onchange="document.getElementById('file-upload').files = this.files; document.getElementById('file-upload').dispatchEvent(new Event('change'))">
+        </label>
     </div>
 </div>
 
