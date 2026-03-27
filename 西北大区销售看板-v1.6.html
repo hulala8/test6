@@ -8,170 +8,367 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary: #4472c4;
-            --primary-soft: #f1f5f9;
-            --secondary: #ed7d31;
-            --accent: #70ad47;
-            --bg: #f8fafc;
-            --card: #ffffff;
-            --text: #1e293b;
-            --muted: #64748b;
-            --border: #e2e8f0;
-            --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
-            --radius: 12px;
-        }
-
-        * { box-sizing: border-box; font-family: 'Outfit', -apple-system, sans-serif; }
-        body { margin: 0; padding: 20px; background-color: var(--bg); color: var(--text); line-height: 1.6; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
+        .dashboard { max-width: 1600px; margin: 0 auto; background: #fff; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
         
-        .dashboard { max-width: 1400px; margin: 0 auto; }
-
-        .header-bar { 
-            display: flex; justify-content: space-between; align-items: center; 
-            background: white; padding: 16px 24px; border-radius: var(--radius); 
-            box-shadow: var(--shadow); margin-bottom: 25px; border-bottom: 3px solid var(--primary);
-        }
-        .header-bar h2 { margin: 0; font-size: 22px; font-weight: 700; color: #1e3a8a; }
-        
-        .upload-btn { 
-            background: var(--primary); color: white; padding: 10px 20px; border-radius: 8px; 
-            cursor: pointer; border: none; font-size: 14px; font-weight: 600; transition: all 0.2s; 
-        }
-        .upload-btn:hover { background: #335a9c; transform: translateY(-1px); }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #203764; padding-bottom: 10px; margin-bottom: 20px; }
+        .header-bar h2 { margin: 0; color: #203764; }
+        .upload-btn { background-color: #4472c4; color: white; padding: 8px 15px; border-radius: 4px; cursor: pointer; border: none; font-size: 14px; }
+        .upload-btn:hover { background-color: #335a9c; }
         input[type="file"] { display: none; }
 
-        /* 筛选器样式 */
-        .filters { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; }
-        .filter-group { 
-            background: white; border: 1px solid var(--border); padding: 15px; 
-            border-radius: var(--radius); flex: 1; min-width: 200px; box-shadow: var(--shadow);
-        }
-        .filter-title { 
-            font-size: 14px; font-weight: 700; margin-bottom: 12px; color: #1e3a8a; 
-            display: flex; justify-content: space-between; align-items: center; 
-        }
-        .filter-title .select-all { font-size: 11px; color: var(--primary); font-weight: 500; cursor: pointer; background: var(--primary-soft); padding: 2px 8px; border-radius: 20px; }
-        .filter-options { max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 5px; }
-        .filter-option { display: flex; align-items: center; padding: 6px 8px; cursor: pointer; border-radius: 6px; font-size: 13px; transition: background 0.2s; }
-        .filter-option:hover { background: #f1f5f9; }
-        .filter-option input { margin-right: 10px; accent-color: var(--primary); }
+        /* 筛选区样式 - 多选 */
+        .filters { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .filter-group { border: 1px solid #4472c4; padding: 10px; border-radius: 5px; flex: 1; min-width: 180px; background-color: #e9eff7; }
+        .filter-options { max-height: 72px; overflow-y: auto; }
+        .filter-title { font-size: 14px; font-weight: bold; margin-bottom: 8px; color: #203764; display: flex; justify-content: space-between; align-items: center; }
+        .filter-title .select-all { font-size: 12px; color: #4472c4; cursor: pointer; font-weight: normal; }
+        .filter-title .select-all:hover { text-decoration: underline; }
+        
+        .filter-options { display: flex; flex-direction: column; gap: 4px; }
+        .filter-option { display: flex; align-items: center; padding: 3px 5px; cursor: pointer; border-radius: 3px; font-size: 13px; }
+        .filter-option:hover { background-color: #d0e0f0; }
+        .filter-option input[type="checkbox"] { margin-right: 6px; cursor: pointer; }
+        .filter-option.checked { background-color: #c5d9f1; }
+        
+        /* 产品筛选特殊样式 */
+        .filter-group.product-cat { border-color: #ed7d31; }
+        .filter-group.product-name { border-color: #70ad47; }
+        .filter-group.product-name.disabled { opacity: 0.6; pointer-events: none; background-color: #f0f0f0; }
 
-        /* KPI 指标卡 */
-        .kpi-container { display: flex; gap: 15px; margin-bottom: 25px; }
-        .kpi-box { 
-            flex: 1; background: white; border: 1px solid var(--border); 
-            padding: 20px 15px; border-radius: var(--radius); box-shadow: var(--shadow); 
-            text-align: center; display: flex; flex-direction: column; gap: 8px;
-        }
-        .kpi-box:first-child, .kpi-box:nth-child(2) { border-top: 4px solid var(--primary); }
-        .kpi-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-        .kpi-value { font-size: 24px; font-weight: 700; color: #1e3a8a; }
-
-        /* 数据截止日期 */
+        /* 数据截止日期样式 */
         .data-date-banner {
-            background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
-            padding: 10px 20px; border-radius: 20px; margin-bottom: 20px;
-            font-size: 13px; display: flex; justify-content: center; align-items: center; gap: 15px;
+            background: linear-gradient(135deg, #ed7d31 0%, #d66a20 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .data-date-banner strong { font-weight: 700; }
+        .data-date-banner .date-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-right: 10px;
+        }
+        .data-date-banner .date-value {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .data-date-banner .progress-divider {
+            margin: 0 15px;
+            opacity: 0.6;
+        }
+        .data-date-banner .progress-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-right: 8px;
+        }
+        .data-date-banner .progress-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #fffacd;
+        }
 
-        /* 主体表格 */
-        .main-content { margin-bottom: 30px; }
-        .table-container { 
-            background: white; border: 1px solid var(--border); border-radius: var(--radius); 
-            overflow: auto; box-shadow: var(--shadow); max-height: 500px;
-        }
+        /* KPI 指标卡样式 */
+        .kpi-container { display: flex; background-color: #203764; color: white; padding: 15px; border-radius: 5px; margin-bottom: 20px; text-align: center; }
+        .kpi-box { flex: 1; border-right: 1px solid #4a6296; padding: 0 10px; }
+        .kpi-box:last-child { border-right: none; }
+        .kpi-title { font-size: 14px; margin-bottom: 8px; }
+        .kpi-value { font-size: 26px; font-weight: bold; }
+
+        /* 主内容区 */
+        .main-content { display: block; margin-bottom: 20px; }
+        .table-container { width: 100%; border: 1px solid #ddd; overflow-y: auto; height: 470px; }
+
+
+        /* 表格基础样式 */
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th, td { padding: 12px 15px; text-align: right; border-bottom: 1px solid #f1f5f9; }
-        th { background: #f8fafc; color: var(--muted); font-weight: 700; position: sticky; top: 0; z-index: 10; text-transform: uppercase; font-size: 11px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
+        th { background-color: #203764; color: white; position: sticky; top: 0; text-align: center; z-index: 10;}
         td { text-align: left; }
-        td.number { font-weight: 600; color: #334155; }
-
-        /* 状态颜色 */
-        td.positive { color: #059669; font-weight: 700; }
-        td.negative { color: #dc2626; font-weight: 700; }
-
-        /* 纯销分析 */
-        .sales-section { margin-top: 40px; }
-        .sales-section h3 { font-size: 20px; color: var(--accent); margin-bottom: 20px; font-weight: 700; }
-        .sales-kpi-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
-        .sales-kpi-card { background: white; border: 1px solid var(--border); padding: 20px; border-radius: var(--radius); box-shadow: var(--shadow); text-align: center; }
-        .sales-kpi-card h4 { margin: 0 0 10px 0; color: #334155; font-size: 14px; }
-        .sales-kpi-value { font-size: 22px; font-weight: 800; color: var(--accent); }
-        .sales-kpi-rate { font-size: 14px; font-weight: 700; background: #ecfdf5; color: #065f46; padding: 2px 10px; border-radius: 20px; margin-top: 8px; display: inline-block; }
-
-        /* 切换组件 */
-        .toggle-container { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
-        .toggle-btn { 
-            background: #f1f5f9; color: var(--muted); border: 1px solid var(--border); 
-            padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s;
+        td.number { text-align: right; }
+        
+        /* 可展开行样式 */
+        .expandable { cursor: pointer; }
+        .expandable:hover { background-color: #f0f0f0; }
+        .expand-icon { display: inline-block; width: 16px; text-align: center; margin-right: 5px; transition: transform 0.2s; }
+        .expand-icon.expanded { transform: rotate(90deg); }
+        
+        .prov-row { background-color: #e2efda; font-weight: bold; }
+        .office-row { background-color: #fce4d6; }
+        .hospital-row { background-color: #fff; }
+        .hidden { display: none; }
+        
+        /* 排序表头样式 */
+        th.sortable { cursor: pointer; user-select: none; }
+        th.sortable:hover { background-color: #2a4d75; }
+        th.sortable::after { content: ' ⇅'; font-size: 12px; opacity: 0.5; }
+        th.sortable.asc::after { content: ' ▲'; opacity: 1; }
+        th.sortable.desc::after { content: ' ▼'; opacity: 1; }
+        
+        .sort-indicator { 
+            cursor: pointer; 
+            font-size: 11px; 
+            opacity: 0.6; 
+            margin-left: 3px;
+            padding: 2px 4px;
+            border-radius: 3px;
         }
-        .toggle-btn.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(68, 114, 196, 0.2); }
+        .sort-indicator:hover { 
+            opacity: 1; 
+            background-color: rgba(255,255,255,0.2);
+        }
+        .sort-indicator.active { 
+            opacity: 1; 
+            color: #ffd700;
+            font-weight: bold;
+        }
+        
+        .rate-cell { display: flex; align-items: center; justify-content: flex-end; }
+        .progress-bg { background-color: #e6e6e6; width: 50px; height: 10px; border-radius: 2px; margin-right: 8px; }
+        .progress-bar { height: 100%; border-radius: 2px; }
+        
+        /* 同比环比样式 */
+        td.positive { color: #70ad47; font-weight: bold; }
+        td.negative { color: #ed7d31; font-weight: bold; }
 
-        /* 移动端适配 */
-        .mobile-filter-toggle { display: none; }
-        .filter-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); z-index: 999; }
-        .mobile-filter-apply-btn { display: none; }
+        /* 纯销分析区域样式 */
+        .sales-section { margin-top: 30px; border-top: 3px solid #70ad47; padding-top: 20px; }
+        .sales-section h3 { color: #70ad47; margin-bottom: 15px; }
+        .sales-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .sales-card { background: linear-gradient(135deg, #f0f9eb 0%, #e6f7e0 100%); border: 1px solid #70ad47; border-radius: 8px; padding: 15px; }
+        .sales-card h4 { margin: 0 0 10px 0; color: #2d5a27; font-size: 16px; }
+        .sales-metrics { display: flex; justify-content: space-around; margin-top: 10px; }
+        .sales-metric { text-align: center; }
+        .sales-metric-value { font-size: 20px; font-weight: bold; color: #70ad47; }
+        .sales-metric-label { font-size: 12px; color: #666; }
+        
+        /* 纯销产品KPI指示卡样式 */
+        .sales-kpi-container { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .sales-kpi-card { flex: 1; min-width: 200px; background: linear-gradient(135deg, #f0f9eb 0%, #e6f7e0 100%); border: 2px solid #70ad47; border-radius: 8px; padding: 15px; text-align: center; }
+        .sales-kpi-card h4 { margin: 0 0 10px 0; color: #2d5a27; font-size: 16px; }
+        .sales-kpi-values { display: flex; justify-content: space-around; }
+        .sales-kpi-item { text-align: center; }
+        .sales-kpi-value { font-size: 22px; font-weight: bold; color: #70ad47; }
+        .sales-kpi-label { font-size: 12px; color: #666; margin-top: 5px; }
+        .sales-kpi-rate { font-size: 18px; font-weight: bold; }
+        .sales-kpi-rate.high { color: #70ad47; }
+        .sales-kpi-rate.medium { color: #5b9bd5; }
+        .sales-kpi-rate.low { color: #ed7d31; }
+        
+        /* 固定顶部区域 */
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background: #f4f4f4;
+            z-index: 100;
+            padding: 10px 0;
+        }
+        .dashboard { padding-top: 0; }
+
+        /* 状态样式 */
+        .empty-state { text-align: center; padding: 100px 0; color: #999; font-size: 16px; }
+        .loading { text-align: center; padding: 50px; color: #4472c4; font-size: 16px; }
+        .loading::after { content: ''; display: inline-block; width: 20px; height: 20px; border: 3px solid #4472c4; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-left: 10px; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error-msg { background-color: #fee; color: #c33; padding: 15px; border-radius: 5px; margin: 20px 0; border: 1px solid #fcc; }
+        .success-msg { background-color: #efe; color: #3c3; padding: 15px; border-radius: 5px; margin: 20px 0; border: 1px solid #cfc; }
+        
+        /* 统计信息 */
+        .stats-info { text-align: right; color: #666; font-size: 12px; margin-bottom: 10px; }
+
+        /* 纯销切换按钮样式 */
+        .sales-toggle-container {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+        .sales-toggle-btn {
+            background: linear-gradient(135deg, #70ad47 0%, #5a8f3a 100%);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(112, 173, 71, 0.3);
+        }
+        .sales-toggle-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(112, 173, 71, 0.4);
+        }
+        .sales-toggle-btn.active {
+            background: linear-gradient(135deg, #ed7d31 0%, #d66a20 100%);
+            box-shadow: 0 2px 8px rgba(237, 125, 49, 0.3);
+        }
+        .sales-toggle-btn.active:hover {
+            box-shadow: 0 4px 12px rgba(237, 125, 49, 0.4);
+        }
+
+        /* 环比切换按钮样式 */
+        .mom-toggle-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+        .mom-toggle-label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #203764;
+        }
+        .mom-toggle-btn {
+            background-color: #e9eff7;
+            color: #4472c4;
+            border: 1px solid #4472c4;
+            padding: 6px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+        .mom-toggle-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(68, 114, 196, 0.3);
+        }
+        .mom-toggle-btn.active {
+            background-color: #4472c4;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(68, 114, 196, 0.4);
+        }
+
+        /* 产品看板样式 */
+        .product-section { margin-top: 30px; }
+        .product-section h3 { color: #ed7d31; }
+        .cat-row { background-color: #fce4d6; font-weight: bold; }
+        .name-row { background-color: #fff2cc; }
+        .prov-row { background-color: #e2efda; }
+        .office-row { background-color: #ddebf7; }
+        .hospital-row { background-color: #ffffff; }
+        .hidden { display: none; }
+
+        /* 移动端适配样式 */
+        .mobile-filter-toggle {
+            display: none;
+            width: 100%;
+            padding: 10px;
+            background-color: #fce4d6;
+            color: #ed7d31;
+            border: 1px solid #ed7d31;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .filter-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 99;
+        }
 
         @media screen and (max-width: 768px) {
-            body { padding: 12px; }
-            .header-bar { display: none; }
-            
-            /* 悬浮筛选按钮 (FAB) */
-            .mobile-filter-toggle { 
-                display: flex; align-items: center; justify-content: center;
-                position: fixed; bottom: 25px; right: 20px; 
-                width: 56px; height: 56px; border-radius: 28px;
-                background: var(--primary); color: white;
-                box-shadow: 0 10px 25px rgba(68, 114, 196, 0.4);
-                z-index: 990; border: none; font-size: 20px;
-            }
-            #filter-badge { position: absolute; top: -5px; right: -5px; background: var(--secondary); color: white; font-size: 10px; padding: 2px 8px; border-radius: 10px; border: 2px solid white; }
+            body { padding: 8px; font-size: 12px; }
+            .dashboard { padding: 10px; padding-top: 0; }
+            .header-bar { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .header-bar h2 { font-size: 18px; }
+            .upload-btn { width: 100%; text-align: center; }
 
-            /* Bottom-Sheet 抽屉 */
+            /* 可折叠筛选器面板 */
+            .mobile-filter-toggle { display: block; }
             .filters {
-                position: fixed; bottom: 0; left: 0; transform: translateY(100%);
-                width: 100%; max-height: 85vh; background: white;
-                padding: 15px 20px 40px 20px; border-radius: 24px 24px 0 0;
-                z-index: 1000; box-shadow: 0 -15px 35px rgba(15, 23, 42, 0.15);
-                overflow-y: auto; transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-                display: flex; flex-direction: column; gap: 0;
+                display: none; /* 默认隐藏 */
+                flex-direction: column;
+                flex-wrap: nowrap; /* 强制不换行，解决产品名称被挤到右侧的问题 */
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 90%;
+                max-height: 80vh;
+                background: white;
+                padding: 15px;
+                border-radius: 8px;
+                z-index: 100;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+                overflow-y: auto;
             }
-            .filters.show { transform: translateY(0); }
-            .filters::before { content: ""; width: 36px; height: 5px; background: #cbd5e1; border-radius: 3px; margin: 0 auto 20px auto; display: block; }
-            
-            .filter-group { min-width: 100%; border: none; border-bottom: 1px solid #f1f5f9; box-shadow: none; padding: 0 0 20px 0; margin-bottom: 20px; border-radius: 0; }
-            .filter-options { max-height: 200px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding: 10px; }
-            .filter-option { padding: 12px 8px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
-            .filter-option input { transform: scale(1.3); margin-right: 15px; }
+            .filters.show { display: flex; }
+            .filter-group { min-width: 100%; border-bottom: 1px dotted #ccc; padding-bottom: 15px; margin-bottom: 10px; }
+            .filter-options { max-height: 150px; /* 让手机端看到更多的筛选项，不再局限于72px */ }
 
-            .kpi-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-            .kpi-box:last-child { grid-column: span 2; padding: 15px; background: var(--primary-soft); border: 1px solid #dbeafe; }
-            .kpi-value { font-size: 20px; }
+            /* 数据截止日期 */
+            .data-date-banner { font-size: 12px; padding: 8px; display: flex; flex-direction: column; gap: 5px; }
+            .data-date-banner .date-value { font-size: 14px; }
+            .data-date-banner .progress-value { font-size: 14px; }
+            .data-date-banner .progress-divider { display: none; }
             
-            .data-date-banner { font-size: 11px; padding: 8px 15px; border-radius: 15px; }
-            
-            .table-container { border-radius: 12px; max-height: 55vh; }
-            th, td { padding: 14px 10px; }
-            
-            .mobile-filter-apply-btn {
-                display: block; width: 100%; padding: 16px; margin-top: 15px;
-                background: var(--primary); color: white; border: none;
-                border-radius: 12px; font-size: 16px; font-weight: 700;
-                box-shadow: 0 8px 20px rgba(68, 114, 196, 0.2);
+            /* KPI卡片两列/三列排布 */
+            .kpi-container { flex-wrap: wrap; gap: 10px; padding: 10px; background-color: transparent; }
+            .kpi-box { 
+                flex: 1 1 45%; 
+                background-color: #203764; 
+                border-radius: 5px; 
+                padding: 10px; 
+                border-right: none;
+                margin-bottom: 5px;
             }
+            .kpi-title { font-size: 12px; }
+            .kpi-value { font-size: 18px; }
+
+            /* 表格高度自适应，横向滚动 */
+            .table-container { 
+                height: auto !important; 
+                max-height: 65vh !important; /* 随内容撑开，不固定500px */
+                overflow-x: auto; 
+                -webkit-overflow-scrolling: touch; 
+            }
+            table { min-width: 800px; /* 强制表格宽度 */ }
+            th, td { font-size: 12px; padding: 6px; }
             
-            /* 底部导入区彻底平铺 */
-            .import-source-container { border-top: 1px solid #e2e8f0; padding: 40px 0; margin-top: 30px; background: transparent; display: flex; justify-content: center;}
-            .import-source-container .upload-btn { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; font-size: 11px; width: 80%; }
+            /* 冻结三个表格的第一列 */
+            #data-table th:first-child, #data-table td:first-child,
+            #product-table th:first-child, #product-table td:first-child,
+            #sales-table th:first-child, #sales-table td:first-child {
+                position: sticky;
+                left: 0;
+                z-index: 5;
+            }
+            /* 第一列背景色，防止透明背景字体重叠 */
+            #data-table th:first-child, #product-table th:first-child, #sales-table th:first-child {
+                background-color: #203764;
+                z-index: 15; /* 表头交叉处层级更高 */
+            }
+            #data-table .prov-row td:first-child, #product-table .cat-row td:first-child, #sales-table .prov-row td:first-child { background-color: #e2efda; }
+            #data-table .office-row td:first-child, #product-table .name-row td:first-child, #sales-table .office-row td:first-child { background-color: #fce4d6; }
+            #data-table .hospital-row td:first-child, #product-table .prov-row td:first-child, #sales-table .hospital-row td:first-child { background-color: #fff; }
+            #product-table .office-row td:first-child { background-color: #ddebf7; }
+            #product-table .hospital-row td:first-child { background-color: #ffffff; }
+
+            /* 按钮和切换器 */
+            .mom-toggle-container { flex-wrap: wrap; justify-content: center; }
+            .sales-toggle-container { flex-wrap: wrap; justify-content: flex-start; }
+            
+            /* 纯销卡片两列 */
+            .sales-kpi-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .sales-kpi-card { min-width: 0; padding: 10px; }
+            .sales-kpi-card h4 { font-size: 14px; }
+            .sales-kpi-value { font-size: 18px; }
+            .sales-kpi-rate { font-size: 16px; }
         }
-
         /* 登录页面样式 */
         #login-overlay {
             position: fixed;
@@ -252,20 +449,16 @@
 </div>
 
 <div class="dashboard" id="main-dashboard" style="display: none;">
-    <!-- 顶栏区域：移动端直接隐藏整个 header-bar 包括原有的巨大上传按钮和标题 -->
     <div class="sticky-header">
         <div class="header-bar">
             <h2>📊 销售数据交互看板</h2>
+            <label class="upload-btn">
+                导入数据源 (CSV/Excel)
+                <input type="file" id="file-upload" accept=".csv,.xlsx,.xls">
+            </label>
         </div>
-        
-        <!-- 移动端筛选器切换按钮：保留为 sticky 这样随时可以点 -->
-        <button id="mobile-filter-toggle" class="mobile-filter-toggle" style="display: none;" onclick="toggleMobileFilters()">
-            🔍 筛选条件面板 (已选 <span id="filter-badge">全局</span>) ▼
-        </button>
-    </div>
 
-    <!-- 弹窗消息区 -->
-    <div id="message-area"></div>
+        <div id="message-area"></div>
 
         <!-- 移动端筛选器切换按钮 -->
         <button id="mobile-filter-toggle" class="mobile-filter-toggle" style="display: none;" onclick="toggleMobileFilters()">
@@ -274,7 +467,7 @@
         <div id="filter-overlay" class="filter-overlay" onclick="toggleMobileFilters()"></div>
 
         <!-- 多选筛选器 -->
-        <div class="filters" id="filters-container">
+        <div class="filters" id="filters-container" style="display: none;">
         <div class="filter-group">
             <div class="filter-title">
                 <span>月份</span>
@@ -310,12 +503,10 @@
             </div>
             <div class="filter-options" id="f-name"></div>
             </div>
-            <!-- 移动端专属的强引导关闭按钮 -->
-            <button class="mobile-filter-apply-btn" onclick="toggleMobileFilters()">✅ 完成筛选，查看看板数据</button>
         </div>
     </div>
 
-    <div id="dashboard-content">
+    <div id="dashboard-content" style="display: none;">
         <div class="stats-info" id="stats-info"></div>
         
         <!-- 数据截止日期显示 -->
@@ -415,7 +606,7 @@
 
         <!-- 纯销产品分析区域 - 四级展开表格 -->
         <div class="sales-section" id="sales-section" style="display: none;">
-            <div class="sales-section-header">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h3 style="margin: 0;">📈 纯销产品分析（艾心安、安达静、艾速达、恒沁）</h3>
                 <div class="sales-toggle-container">
                     <button class="sales-toggle-btn active" id="btn-amount" onclick="toggleSalesDisplay('amount')">纯销金额</button>
@@ -516,15 +707,6 @@
     <div id="empty-state" class="empty-state">
         👆 请点击右上角上传您的数据源 (CSV/Excel文件) 开启分析<br><br>
         <small style="color: #666;">支持的文件格式：.csv, .xlsx, .xls</small>
-    </div>
-
-    <!-- 移动到最底部的弱化版数据导入区域 -->
-    <div class="import-source-container">
-        <label class="upload-btn">
-            📂 自由导入未加密源表 (CSV/Excel)
-            <input type="file" id="file-upload" accept=".csv,.xlsx,.xls">
-        </label>
-        <div class="auto-update-hint">💡 生产环境建议使用 data-encryptor 更新密文数据</div>
     </div>
 </div>
 
@@ -1462,17 +1644,20 @@
     window.toggleMobileFilters = function() {
         const filters = document.getElementById('filters-container');
         const overlay = document.getElementById('filter-overlay');
-        const badge = document.getElementById('filter-badge');
+        const isShowing = filters.classList.contains('show');
         
-        // Toggle 'show' class for both
-        filters.classList.toggle('show');
-        overlay.classList.toggle('show');
-        
-        // Update badge or other states if needed
-        if (filters.classList.contains('show')) {
-            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        if (isShowing) {
+            filters.classList.remove('show');
+            overlay.style.display = 'none';
+            if (window.innerWidth <= 768) {
+                filters.style.display = 'none';
+            }
         } else {
-            document.body.style.overflow = '';
+            filters.classList.add('show');
+            overlay.style.display = 'block';
+            if (window.innerWidth <= 768) {
+                filters.style.display = 'flex';
+            }
         }
     }
 
