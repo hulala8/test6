@@ -797,24 +797,52 @@
 
     // 默认加密后的数据文件名
     const DEFAULT_DATA_FILE = 'data.bin';
-    // 设定的固定密码
-    const ACCESS_PASSWORD = 'hr@1234';
+    // 用户输入的密码（不再硬编码，由用户输入后用于解密验证）
+    let userPassword = '';
 
-    // 验证密码逻辑
+    // 验证密码逻辑：不再比对硬编码密码，而是直接用用户输入的密码尝试解密数据
+    // 如果解密成功 → 密码正确；解密失败 → 密码错误
     function verifyPassword() {
         const input = document.getElementById('login-password').value;
         const errorHint = document.getElementById('login-error');
         
-        if (input === ACCESS_PASSWORD) {
-            // 登录成功
-            sessionStorage.setItem('isLoggedIn', 'true');
-            showMainDashboard();
-        } else {
-            // 登录失败
+        if (!input) {
+            errorHint.textContent = '请输入密码';
             errorHint.style.display = 'block';
-            document.getElementById('login-password').value = '';
-            document.getElementById('login-password').focus();
+            return;
         }
+        
+        // 保存用户输入的密码，用于后续解密
+        userPassword = input;
+        errorHint.style.display = 'none';
+        
+        // 禁用登录按钮，显示验证中状态
+        const loginBtn = document.querySelector('.login-btn');
+        loginBtn.textContent = '正在验证密码...';
+        loginBtn.disabled = true;
+        
+        // 进入主看板界面并尝试用此密码解密数据
+        document.getElementById('login-overlay').style.display = 'none';
+        document.getElementById('main-dashboard').style.display = 'block';
+        autoLoadData();
+    }
+
+    // 当解密失败时，退回到登录页面
+    function returnToLogin(message) {
+        userPassword = '';
+        document.getElementById('login-overlay').style.display = 'flex';
+        document.getElementById('main-dashboard').style.display = 'none';
+        
+        const errorHint = document.getElementById('login-error');
+        errorHint.textContent = message || '密码错误，解密失败，请重新输入';
+        errorHint.style.display = 'block';
+        
+        const loginBtn = document.querySelector('.login-btn');
+        loginBtn.textContent = '确认登录';
+        loginBtn.disabled = false;
+        
+        document.getElementById('login-password').value = '';
+        document.getElementById('login-password').focus();
     }
 
     // 显示看版并加载默认数据
@@ -956,10 +984,12 @@
             await new Promise(r => setTimeout(r, 50));
             showLoading('正在进行加密数据校验并深度解密...');
             
-            // 核心解密
-            const decrypted = CryptoJS.AES.decrypt(encryptedData, ACCESS_PASSWORD);
+            // 核心解密 —— 使用用户输入的密码
+            const decrypted = CryptoJS.AES.decrypt(encryptedData, userPassword);
             if (!decrypted || decrypted.sigBytes <= 0) {
-                throw new Error('解密校验失败，数据包完整性受损');
+                // 解密失败 = 密码错误，退回登录页面
+                returnToLogin('密码错误，无法解密数据，请重新输入正确的密码');
+                return;
             }
             
             encryptedData = ""; // 立即释放内存
@@ -1036,16 +1066,26 @@
 
         } catch (err) {
             console.error('Mobile Fix Exception:', err);
-            resetEmptyState();
-            showMessage('加载中断: ' + (err.message || '未知异常'), 'error');
+            // 判断是否因为密码错误导致的解密/解压失败
+            const errMsg = (err.message || '').toLowerCase();
+            const isDecryptError = errMsg.includes('malformed') || errMsg.includes('invalid') || 
+                                   errMsg.includes('unexpected') || errMsg.includes('incorrect') ||
+                                   errMsg.includes('utf') || errMsg.includes('buffer') ||
+                                   errMsg.includes('解密') || errMsg.includes('解析');
+            if (isDecryptError && userPassword) {
+                // 密码错误导致的解密失败，退回登录页
+                returnToLogin('密码错误，数据解密失败，请重新输入正确的密码');
+            } else {
+                resetEmptyState();
+                showMessage('加载中断: ' + (err.message || '未知异常'), 'error');
+            }
         }
     }
 
     // 页面加载后的操作
+    // 不再自动跳过登录，因为每次都需要用户输入密码来解密数据
     window.onload = function() {
-        if (sessionStorage.getItem('isLoggedIn') === 'true') {
-            showMainDashboard();
-        }
+        // 页面刷新后必须重新输入密码
     };
 
     // 环比计算模式 'monthly': 月度环比增长, 'rolling': 近三月环比增长
